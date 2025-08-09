@@ -23,7 +23,7 @@ app.add_middleware(
 )
 
 # Database connection settings
-DATABASE_URL=os.getenv("DATABASE_URL")
+DATABASE_URL="postgresql://diyorbekw:iWvq1YE5BRrBWl2sFwVBDvMJon4LSodl@dpg-d2big7adbo4c73asdrcg-a.oregon-postgres.render.com/quizdb_6eiq"
 
 # Models
 class CategoryBase(BaseModel):
