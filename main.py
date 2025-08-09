@@ -23,7 +23,7 @@ app.add_middleware(
 )
 
 # Database connection settings
-DATABASE_URL = "postgresql://postgres:gezher-jefxox-9myTxi@db.abkgeaijjryrdlaghflp.supabase.co:5432/postgres?sslmode=require"
+DATABASE_URL=os.getenv("DATABASE_URL")
 
 # Models
 class CategoryBase(BaseModel):
