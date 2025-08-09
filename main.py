@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
+import ssl
 
 # Load environment variables
 load_dotenv()
@@ -63,7 +64,14 @@ pool: Pool = None
 @app.on_event("startup")
 async def startup():
     global pool
-    pool = await asyncpg.create_pool(DATABASE_URL)
+    ssl_ctx = ssl.create_default_context()
+    ssl_ctx.check_hostname = False
+    ssl_ctx.verify_mode = ssl.CERT_NONE
+
+    pool = await asyncpg.create_pool(
+        dsn=DATABASE_URL,
+        ssl=ssl_ctx
+    )
     await create_tables()
 
 @app.on_event("shutdown")
