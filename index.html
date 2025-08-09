@@ -32,21 +32,22 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow: auto;
             position: relative;
         }
 
         /* Main container with 9:16 aspect ratio */
         .quiz-container {
             width: 100%;
+            overflow-y: auto;
+            max-height: none;
+            height: auto;
+            min-height: 100vh;
             max-width: 450px;
-            height: 100%;
-            max-height: 800px;
             margin: 0 auto;
             background-color: var(--white);
             border-radius: 24px;
             box-shadow: var(--shadow);
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             position: relative;
@@ -97,6 +98,7 @@
             align-items: center;
             text-align: center;
             background-color: var(--light-bg);
+            overflow-y: auto;
         }
 
         .category-title {
@@ -205,6 +207,7 @@
             transition: opacity 0.5s ease, transform 0.5s ease;
             background-color: var(--light-bg);
             display: none;
+            overflow-y: auto;
         }
 
         .question-container.active {
