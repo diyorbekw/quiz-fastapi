@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # Load environment variables
 load_dotenv()
 
-app = FastAPI(title="Quiz API", version="1.0")
+app = FastAPI(title="Quiz API", version="1.0", description="API for managing quiz questions and categories")
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,12 +22,13 @@ app.add_middleware(
 )
 
 # Database connection settings
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/quizdb")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Models
 class CategoryBase(BaseModel):
     name: str
     description: Optional[str] = None
+    emoji: str
 
 class CategoryCreate(CategoryBase):
     pass
@@ -77,6 +78,7 @@ async def create_tables():
             CREATE TABLE IF NOT EXISTS categories (
                 id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL UNIQUE,
+                emoji TEXT,
                 description TEXT
             )
         """)
@@ -100,52 +102,48 @@ async def get_db():
         yield connection
 
 # Category Endpoints
-@app.post("/categories/", response_model=Category, status_code=201)
+@app.post("/categories/", response_model=Category, status_code=201, summary="Add a new category")
 async def add_category(category: CategoryCreate, db=Depends(get_db)):
-    """Add a new category to the database"""
     query = """
-        INSERT INTO categories (name, description)
-        VALUES ($1, $2)
-        RETURNING id, name, description
+        INSERT INTO categories (name, description, emoji)
+        VALUES ($1, $2, $3)
+        RETURNING id, name, description, emoji
     """
     try:
-        record = await db.fetchrow(query, category.name, category.description)
+        record = await db.fetchrow(query, category.name, category.description, category.emoji)
         return Category(**record)
     except asyncpg.UniqueViolationError:
-        raise HTTPException(status_code=400, detail="Category name already exists")
+        raise HTTPException(status_code=400, detail="Category name already exists.")
 
-@app.get("/categories/", response_model=List[Category])
+@app.get("/categories/", response_model=List[Category], summary="Get list of categories")
 async def get_categories(limit: int = 10, db=Depends(get_db)):
-    """Get list of categories with limit"""
-    records = await db.fetch("SELECT id, name, description FROM categories LIMIT $1", limit)
+
+    records = await db.fetch("SELECT id, name, description, emoji FROM categories LIMIT $1", limit)
     return [Category(**record) for record in records]
 
-@app.get("/categories/{category_id}", response_model=Category)
+@app.get("/categories/{category_id}", response_model=Category, summary="Get a specific category ")
 async def get_category(category_id: int, db=Depends(get_db)):
-    """Get a specific category by ID"""
     record = await db.fetchrow(
-        "SELECT id, name, description FROM categories WHERE id = $1",
+        "SELECT id, name, description, emoji FROM categories WHERE id = $1",
         category_id
     )
     if not record:
-        raise HTTPException(status_code=404, detail="Category not found")
+        raise HTTPException(status_code=404, detail="Category not found.")
     return Category(**record)
 
-@app.delete("/categories/{category_id}", status_code=204)
+@app.delete("/categories/{category_id}", status_code=204, summary="Delete a category")
 async def delete_category(category_id: int, db=Depends(get_db)):
-    """Delete a category (will cascade to related questions due to ON DELETE CASCADE)"""
     result = await db.execute("DELETE FROM categories WHERE id = $1", category_id)
     if result == "DELETE 0":
-        raise HTTPException(status_code=404, detail="Category not found")
+        raise HTTPException(status_code=404, detail="Category not found.")
 
 # Question Endpoints
-@app.post("/questions/", response_model=Question, status_code=201)
+@app.post("/questions/", response_model=Question, status_code=201, summary="Add a new question")
 async def add_question(question: QuestionCreate, db=Depends(get_db)):
-    """Add a new question to the database"""
     # First check if category exists
     category_exists = await db.fetchval("SELECT 1 FROM categories WHERE id = $1", question.category_id)
     if not category_exists:
-        raise HTTPException(status_code=400, detail="Category does not exist")
+        raise HTTPException(status_code=400, detail="Category does not exist.")
     
     query = """
         INSERT INTO questions (question, a_var, b_var, c_var, d_var, answer, category_id)
@@ -165,15 +163,14 @@ async def add_question(question: QuestionCreate, db=Depends(get_db)):
         )
         return Question(**record)
     except asyncpg.CheckViolationError:
-        raise HTTPException(status_code=400, detail="Answer must be A, B, C or D")
+        raise HTTPException(status_code=400, detail="Answer must be A, B, C or D.")
 
-@app.put("/questions/{question_id}", response_model=Question)
+@app.put("/questions/{question_id}", response_model=Question, summary="Update a question")
 async def change_question(question_id: int, question: QuestionCreate, db=Depends(get_db)):
-    """Update an existing question"""
     # Check if new category exists
     category_exists = await db.fetchval("SELECT 1 FROM categories WHERE id = $1", question.category_id)
     if not category_exists:
-        raise HTTPException(status_code=400, detail="Category does not exist")
+        raise HTTPException(status_code=400, detail="Category does not exist.")
     
     query = """
         UPDATE questions
@@ -194,40 +191,37 @@ async def change_question(question_id: int, question: QuestionCreate, db=Depends
             question_id
         )
         if not record:
-            raise HTTPException(status_code=404, detail="Question not found")
+            raise HTTPException(status_code=404, detail="Question not found.")
         return Question(**record)
     except asyncpg.CheckViolationError:
-        raise HTTPException(status_code=400, detail="Answer must be A, B, C or D")
+        raise HTTPException(status_code=400, detail="Answer must be A, B, C or D.")
 
-@app.delete("/questions/{question_id}", status_code=204)
+@app.delete("/questions/{question_id}", status_code=204, summary="Delete a question")
 async def delete_question(question_id: int, db=Depends(get_db)):
-    """Delete a question"""
     result = await db.execute("DELETE FROM questions WHERE id = $1", question_id)
     if result == "DELETE 0":
-        raise HTTPException(status_code=404, detail="Question not found")
+        raise HTTPException(status_code=404, detail="Question not found.")
         return
     
-    return {"message": "Question deleted successfully"}
+    return {"message": "Question deleted successfully."}
 
 
-@app.get("/questions/{question_id}", response_model=Question)
+@app.get("/questions/{question_id}", response_model=Question, summary="Get a specific question")
 async def get_question(question_id: int, db=Depends(get_db)):
-    """Get a specific question by ID"""
     record = await db.fetchrow(
         "SELECT id, question, a_var, b_var, c_var, d_var, answer, category_id FROM questions WHERE id = $1",
         question_id
     )
     if not record:
-        raise HTTPException(status_code=404, detail="Question not found")
+        raise HTTPException(status_code=404, detail="Question not found.")
     return Question(**record)
 
-@app.get("/categories/{category_id}/questions", response_model=List[Question])
+@app.get("/categories/{category_id}/questions", response_model=List[Question], summary="Get questions by category")
 async def get_questions_by_category(category_id: int, db=Depends(get_db)):
-    """Get all questions for a specific category"""
     # First check if category exists
     category_exists = await db.fetchval("SELECT 1 FROM categories WHERE id = $1", category_id)
     if not category_exists:
-        raise HTTPException(status_code=404, detail="Category not found")
+        raise HTTPException(status_code=404, detail="Category not found.")
     
     records = await db.fetch(
         "SELECT id, question, a_var, b_var, c_var, d_var, answer, category_id FROM questions WHERE category_id = $1",
