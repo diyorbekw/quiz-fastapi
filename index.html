@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Virtual Imtihon</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         /* CSS Reset */
         * {
@@ -589,6 +590,28 @@
     </div>
 
     <script>
+const tg = window.Telegram?.WebApp;
+tg?.ready();
+tg?.expand();
+
+const tgUser = tg?.initDataUnsafe?.user || null;
+
+const full_name = tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') : null;
+const username = tgUser?.username || null;
+const telegram_id = tgUser?.id || null;
+
+async function sendResultsToAdmin(payload) {
+    try {
+        await fetch(`${API_BASE_URL}/results`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        });
+    } catch (e) {
+        console.error('Failed to send results to admin:', e);
+    }
+}
+
         document.addEventListener('DOMContentLoaded', function() {
             // DOM Elements
             const categoryContainer = document.getElementById('category-container');
@@ -719,6 +742,7 @@ async function initQuiz() {
 async function startQuiz() {
     if (!selectedCategoryId) return;
     
+    let selectedCategoryName = null;
     currentQuestionIndex = 0;
     score = 0;
     quizCompleted = false;
@@ -747,7 +771,8 @@ async function startQuiz() {
         quizData = await questionsResponse.json();
         totalQuestions = quizData.length;
         const category = await categoryResponse.json();
-        
+        selectedCategoryName = category.name;
+
         if (totalQuestions === 0) {
             throw new Error('No questions available for this category');
         }
@@ -890,6 +915,20 @@ function endQuiz() {
     
     // Calculate percentage
     const percentage = Math.round((score / quizData.length) * 100);
+    const payload = {
+    telegram_id: telegram_id,                  // может быть null, если не в TG
+    full_name: full_name,                      // строка "Имя Фамилия"
+    username: username,                        // без @
+    category: selectedCategoryName,            // имя категории
+    questions_count: quizData.length,
+    correct_answers_count: score,
+    correct_answers_percent: percentage
+};
+
+// Отправляем только если реально открыто в Telegram (есть tgUser)
+if (telegram_id) {
+    sendResultsToAdmin(payload);
+}
     let performanceMessage;
     
     if (percentage >= 80) {

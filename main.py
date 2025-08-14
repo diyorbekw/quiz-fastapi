@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 import ssl
+import httpx
+import html as html_escape
 
 load_dotenv()
 
@@ -22,6 +24,9 @@ app.add_middleware(
 )
 
 DATABASE_URL="postgresql://diyorbekw:iWvq1YE5BRrBWl2sFwVBDvMJon4LSodl@dpg-d2big7adbo4c73asdrcg-a.oregon-postgres.render.com/quizdb_6eiq"
+BOT_TOKEN="8419378575:AAEjSLGNp3NbbokZctmediBYPLFFDrtvos8"
+ADMIN_CHAT_ID=5515940993
+TG_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 class CategoryBase(BaseModel):
     name: str
@@ -55,6 +60,15 @@ class Question(QuestionBase):
 
     class Config:
         orm_mode = True
+
+class ResultPayload(BaseModel):
+    telegram_id: Optional[int] = None
+    full_name: Optional[str] = None
+    username: Optional[str] = None
+    category: str
+    questions_count: int
+    correct_answers_count: int
+    correct_answers_percent: int
 
 pool: Pool = None
 
@@ -225,5 +239,51 @@ async def get_questions_by_category(category_id: int, db=Depends(get_db)):
     )
     return [Question(**record) for record in records]
 
+@app.post("/results", status_code=202, summary="Send quiz result to admin")
+async def send_result_to_admin(payload: ResultPayload):
+    # Собираем «упоминание» пользователя (mention_html)
+    if payload.telegram_id and payload.full_name:
+        safe_name = html_escape.escape(payload.full_name)
+        mention_html = f'<a href="tg://user?id={payload.telegram_id}">{safe_name}</a>'
+    elif payload.full_name:
+        mention_html = html_escape.escape(payload.full_name)
+    else:
+        mention_html = "Noma’lum foydalanuvchi"
+
+    # Формируем текст как ты просил
+    # Foydalanuvchi: {full_name} (message.from_user.mention_html)
+    # Mavzu: {category}
+    # Savollar soni: {questions_count}
+    # To'g'ri javoblar soni: {correct_answers_count}
+    # foiz: {correct_answers_percent}
+    lines = [
+        f"Foydalanuvchi: {mention_html}",
+        f"Mavzu: {html_escape.escape(payload.category)}",
+        f"Savollar soni: {payload.questions_count}",
+        f"To'g'ri javoblar soni: {payload.correct_answers_count}",
+        f"foiz: {payload.correct_answers_percent}%",
+    ]
+    text = "\n".join(lines)
+
+    if not BOT_TOKEN:
+        raise HTTPException(status_code=500, detail="BOT_TOKEN is not set on server")
+
+    send_url = f"{TG_API}/sendMessage"
+    data = {
+        "chat_id": ADMIN_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.post(send_url, json=data)
+        if r.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"Telegram API error: {r.text}")
+
+    return {"status": "ok"}
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    
