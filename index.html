@@ -859,46 +859,48 @@
             }
 
             // End quiz
-            function endQuiz() {
-                quizCompleted = true;
-                stopTimer();
-                
-                const percentage = Math.round((score / quizData.length) * 100);
-                const payload = {
-                    telegram_id: telegram_id,
-                    full_name: full_name,
-                    username: username,
-                    category: selectedCategoryName,
-                    questions_count: quizData.length,
-                    correct_answers_count: score,
-                    correct_answers_percent: percentage
-                };
+           function endQuiz() {
+            quizCompleted = true;
+            stopTimer();
+            
+            const percentage = Math.round((score / quizData.length) * 100);
+            const elapsedTime = getElapsedTime(); // Vaqtni hisoblash
+            
+            const payload = {
+                telegram_id: telegram_id,
+                full_name: full_name,
+                username: username,
+                category: selectedCategoryName,
+                questions_count: quizData.length,
+                correct_answers_count: score,
+                correct_answers_percent: percentage,
+                spent_time: elapsedTime  // Yangi maydon
+            };
 
-                if (telegram_id) {
-                    sendResultsToAdmin(payload);
-                }
-                
-                let performanceMessage;
-                if (percentage >= 80) {
-                    performanceMessage = "Ajoyib! Siz a'lo natija qayd etdingiz!";
-                } else if (percentage >= 60) {
-                    performanceMessage = "Yaxshi! Lekin yanada yaxshiroq bo'lishi mumkin edi!";
-                } else if (percentage >= 40) {
-                    performanceMessage = "Yomon emas! Lekin ko'proq o'qishingiz kerak!";
-                } else {
-                    performanceMessage = "Mashq qilishda davom eting! Siz yaxshilanasiz!";
-                }
-                
-                const elapsedTime = getElapsedTime();
-                resultsScoreElement.textContent = `Sizning natijangiz: ${score} / ${quizData.length}`;
-                resultsDetailsElement.innerHTML = `
-                    ${performanceMessage}<br>
-                    Sarflangan vaqt: ${elapsedTime}
-                `;
-                
-                questionContainer.classList.remove('active');
-                resultsContainer.classList.add('show');
+            if (telegram_id) {
+                sendResultsToAdmin(payload);
             }
+            
+            let performanceMessage;
+            if (percentage >= 80) {
+                performanceMessage = "Ajoyib! Siz a'lo natija qayd etdingiz!";
+            } else if (percentage >= 60) {
+                performanceMessage = "Yaxshi! Lekin yanada yaxshiroq bo'lishi mumkin edi!";
+            } else if (percentage >= 40) {
+                performanceMessage = "Yomon emas! Lekin ko'proq o'qishingiz kerak!";
+            } else {
+                performanceMessage = "Mashq qilishda davom eting! Siz yaxshilanasiz!";
+            }
+            
+            resultsScoreElement.textContent = `Sizning natijangiz: ${score} / ${quizData.length}`;
+            resultsDetailsElement.innerHTML = `
+                ${performanceMessage}<br>
+                Sarflangan vaqt: ${elapsedTime}
+            `;
+            
+            questionContainer.classList.remove('active');
+            resultsContainer.classList.add('show');
+        }
 
             // Update progress bar
             function updateProgressBar() {

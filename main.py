@@ -69,7 +69,9 @@ class ResultPayload(BaseModel):
     questions_count: int
     correct_answers_count: int
     correct_answers_percent: int
-
+    spent_time: str
+    
+    
 pool: Pool = None
 
 @app.on_event("startup")
@@ -250,18 +252,14 @@ async def send_result_to_admin(payload: ResultPayload):
     else:
         mention_html = "Noma’lum foydalanuvchi"
 
-    # Формируем текст как ты просил
-    # Foydalanuvchi: {full_name} (message.from_user.mention_html)
-    # Mavzu: {category}
-    # Savollar soni: {questions_count}
-    # To'g'ri javoblar soni: {correct_answers_count}
-    # foiz: {correct_answers_percent}
     lines = [
-        f"Foydalanuvchi: {mention_html}",
-        f"Mavzu: {html_escape.escape(payload.category)}",
-        f"Savollar soni: {payload.questions_count}",
-        f"To'g'ri javoblar soni: {payload.correct_answers_count}",
-        f"foiz: {payload.correct_answers_percent}%",
+        "Yangi test natijasi:\n",
+        f"👤 Foydalanuvchi: {mention_html}",
+        f"📝 Mavzu: {html_escape.escape(payload.category)}",
+        f"❓ Savollar soni: {payload.questions_count}",
+        f"✅ To'g'ri javoblar soni: {payload.correct_answers_count}",
+        f"🎯 Foiz: {payload.correct_answers_percent}%",
+        f"⏳ Vaqt: {payload.spent_time}" 
     ]
     text = "\n".join(lines)
 
