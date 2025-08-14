@@ -803,63 +803,56 @@ async function startQuiz() {
 }
 
             // Load question
-            function loadQuestion(index) {
-                if (index >= quizData.length) {
-                    endQuiz();
-                    return;
-                }
+function loadQuestion(index) {
+    // Reset state
+    isTransitioning = false;
+    selectedAnswer = null;
+    nextButton.classList.remove('enabled');
 
-                // Reset state
-                isTransitioning = false;
-                selectedAnswer = null;
-                nextButton.classList.remove('enabled');
+    // Update question number
+    questionNumberElement.textContent = `Savol ${index + 1} / ${quizData.length}`;
 
-                // Update question number
-                questionNumberElement.textContent = `Savol ${index + 1} / ${quizData.length}`;
+    // Set question text
+    const currentQuestion = quizData[index];
+    questionTextElement.textContent = currentQuestion.question;
 
-                // Set question text
-                const currentQuestion = quizData[index];
-                questionTextElement.textContent = currentQuestion.question;
+    // Clear previous answers
+    answersContainer.innerHTML = '';
 
-                // Clear previous answers
-                answersContainer.innerHTML = '';
+    // Add new answers
+    const answers = [
+        currentQuestion.a_var,
+        currentQuestion.b_var,
+        currentQuestion.c_var,
+        currentQuestion.d_var
+    ];
 
-                // Add new answers
-                const answers = [
-                    currentQuestion.a_var,
-                    currentQuestion.b_var,
-                    currentQuestion.c_var,
-                    currentQuestion.d_var
-                ];
+    answers.forEach((answer, i) => {
+        const answerElement = document.createElement('div');
+        answerElement.className = 'answer-option';
+        answerElement.dataset.answerId = i;
+        answerElement.innerHTML = `
+            <div class="answer-prefix">${String.fromCharCode(65 + i)}</div>
+            <div class="answer-text">${answer}</div>
+        `;
+        
+        answerElement.addEventListener('click', () => {
+            if (!isTransitioning) selectAnswer(answerElement, i);
+        });
+        
+        answerElement.addEventListener('click', createRipple);
+        
+        answersContainer.appendChild(answerElement);
+    });
 
-                answers.forEach((answer, i) => {
-                    const answerElement = document.createElement('div');
-                    answerElement.className = 'answer-option';
-                    answerElement.dataset.answerId = i;
-                    answerElement.innerHTML = `
-                        <div class="answer-prefix">${String.fromCharCode(65 + i)}</div>
-                        <div class="answer-text">${answer}</div>
-                    `;
-                    
-                    // Add click event
-                    answerElement.addEventListener('click', () => {
-                        if (!isTransitioning) selectAnswer(answerElement, i);
-                    });
-                    
-                    // Add ripple effect
-                    answerElement.addEventListener('click', createRipple);
-                    
-                    answersContainer.appendChild(answerElement);
-                });
-
-                // Animate question entrance
-                questionContainer.style.opacity = 0;
-                questionContainer.style.transform = 'translateY(20px)';
-                setTimeout(() => {
-                    questionContainer.style.opacity = 1;
-                    questionContainer.style.transform = 'translateY(0)';
-                }, 50);
-            }
+    // Animate question entrance
+    questionContainer.style.opacity = 0;
+    questionContainer.style.transform = 'translateY(20px)';
+    setTimeout(() => {
+        questionContainer.style.opacity = 1;
+        questionContainer.style.transform = 'translateY(0)';
+    }, 50);
+}
 
             // Select answer
             function selectAnswer(answerElement, answerIndex) {
@@ -875,38 +868,36 @@ async function startQuiz() {
             }
 
             // Next question
-            function nextQuestion() {
-                if (selectedAnswer === null || isTransitioning) return;
-                
-                isTransitioning = true;
-                
-                // Store user's answer
-                const currentQuestion = quizData[currentQuestionIndex];
-                const correctAnswerIndex = ['A', 'B', 'C', 'D'].indexOf(currentQuestion.answer);
-                const isCorrect = selectedAnswer === correctAnswerIndex;
-                
-                userAnswers.push({
-                    questionIndex: currentQuestionIndex,
-                    answerIndex: selectedAnswer,
-                    isCorrect: isCorrect
-                });
+function nextQuestion() {
+    if (selectedAnswer === null || isTransitioning) return;
+    
+    isTransitioning = true;
+    
+    // Store user's answer
+    const currentQuestion = quizData[currentQuestionIndex];
+    const correctAnswerIndex = ['A', 'B', 'C', 'D'].indexOf(currentQuestion.answer);
+    const isCorrect = selectedAnswer === correctAnswerIndex;
+    
+    userAnswers.push({
+        questionIndex: currentQuestionIndex,
+        answerIndex: selectedAnswer,
+        isCorrect: isCorrect
+    });
 
-                // Update score if correct
-                if (isCorrect) {
-                    score++;
-                }
+    // Update score if correct
+    if (isCorrect) {
+        score++;
+    }
 
-                // Move to next question
-                currentQuestionIndex++;
-                loadQuestion(currentQuestionIndex);
-                updateProgressBar();
-            }
-
-            // Update progress bar
-            function updateProgressBar() {
-                const progress = (currentQuestionIndex / quizData.length) * 100;
-                progressBar.style.width = `${progress}%`;
-            }
+    // Move to next question or end quiz
+    currentQuestionIndex++;
+    if (currentQuestionIndex >= quizData.length) {
+        endQuiz();
+    } else {
+        loadQuestion(currentQuestionIndex);
+    }
+    updateProgressBar();
+}
 
             // End quiz
 function endQuiz() {
