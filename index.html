@@ -41,7 +41,7 @@
             position: relative;
         }
 
-        /* Main container with 9:16 aspect ratio */
+        /* Main container */
         .quiz-container {
             width: 100%;
             overflow-y: auto;
@@ -485,66 +485,63 @@
             }
         }
 
-/* Timer styles */
-.timer-container {
-    display: none;
-    display: flex;
-    justify-content: center;
-    margin: 12px 0;
-}
+        /* Timer styles */
+        .timer-container {
+            display: flex;
+            justify-content: center;
+            margin: 12px 0;
+        }
 
-.timer {
-    background-color: var(--timer-bg);
-    color: var(--timer-text);
-    padding: 8px 16px;
-    border-radius: 50px;
-    font-size: 1.1rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    transition: var(--transition);
-    display: flex;
-    align-items: center;
-}
+        .timer {
+            background-color: var(--timer-bg);
+            color: var(--timer-text);
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+        }
 
-.timer::before {
-    content: '⏱️';
-    margin-right: 8px;
-    font-size: 1rem;
-}
+        .timer::before {
+            content: '⏱️';
+            margin-right: 8px;
+            font-size: 1rem;
+        }
 
-.timer.warning {
-    background-color: var(--timer-warning);
-    color: var(--text);
-}
+        .timer.warning {
+            background-color: var(--timer-warning);
+            color: var(--text);
+        }
 
-.timer.danger {
-    background-color: var(--timer-danger);
-    animation: pulse 1s infinite;
-}
+        .timer.danger {
+            background-color: var(--timer-danger);
+            animation: pulse 1s infinite;
+        }
 
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-}
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
 
-@media (max-width: 400px) {
-    .timer {
-        font-size: 0.9rem;
-        padding: 6px 12px;
-    }
-}
-
+        @media (max-width: 400px) {
+            .timer {
+                font-size: 0.9rem;
+                padding: 6px 12px;
+            }
+        }
     </style>
 </head>
 <body>
-
     <div class="quiz-container">
         <!-- Quiz Header -->
         <div class="quiz-header">
             <div class="quiz-title">Virtual Imtihon</div>
-            <div class="timer-container">
+            <div class="timer-container" style="display: none;">
                 <div class="timer" id="timer">00:00</div>
             </div>
             <div class="progress-container">
@@ -558,7 +555,6 @@
             <div class="category-subtitle">Kerakli mavzuni tanlang va imtihonda qatnashing</div>
             
             <div class="categories-grid" id="categories-grid">
-                <!-- Categories will be loaded here -->
                 <div class="loader"></div>
             </div>
             
@@ -590,29 +586,17 @@
     </div>
 
     <script>
-const tg = window.Telegram?.WebApp;
-tg?.ready();
-tg?.expand();
-
-const tgUser = tg?.initDataUnsafe?.user || null;
-
-const full_name = tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') : null;
-const username = tgUser?.username || null;
-const telegram_id = tgUser?.id || null;
-
-async function sendResultsToAdmin(payload) {
-    try {
-        await fetch(`${API_BASE_URL}/results`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload),
-        });
-    } catch (e) {
-        console.error('Failed to send results to admin:', e);
-    }
-}
-
         document.addEventListener('DOMContentLoaded', function() {
+            // Telegram WebApp initialization
+            const tg = window.Telegram?.WebApp;
+            tg?.ready();
+            tg?.expand();
+
+            const tgUser = tg?.initDataUnsafe?.user || null;
+            const full_name = tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') : null;
+            const username = tgUser?.username || null;
+            const telegram_id = tgUser?.id || null;
+
             // DOM Elements
             const categoryContainer = document.getElementById('category-container');
             const categoriesGrid = document.getElementById('categories-grid');
@@ -627,13 +611,16 @@ async function sendResultsToAdmin(payload) {
             const resultsScoreElement = document.getElementById('results-score');
             const resultsDetailsElement = document.getElementById('results-details');
             const restartButton = document.getElementById('restart-button');
+            const timerElement = document.getElementById('timer');
+            const timerContainer = document.querySelector('.timer-container');
 
             // API Configuration
-            const API_BASE_URL = 'https://quiz-fastapi-sx6a.onrender.com'; // Change this to your API URL
+            const API_BASE_URL = 'https://quiz-fastapi-sx6a.onrender.com';
             let quizData = [];
             let totalQuestions = 0;
             let categories = [];
             let selectedCategoryId = null;
+            let selectedCategoryName = null;
 
             // Quiz state
             let currentQuestionIndex = 0;
@@ -643,7 +630,13 @@ async function sendResultsToAdmin(payload) {
             let isTransitioning = false;
             let userAnswers = [];
 
-            // Category icons (you can customize these)
+            // Timer variables
+            let timerInterval;
+            let totalSeconds = 0;
+            let remainingSeconds = 0;
+            let startTime;
+
+            // Category icons
             const categoryIcons = {
                 'General': '🌐',
                 'Science': '🔬',
@@ -660,24 +653,18 @@ async function sendResultsToAdmin(payload) {
             };
 
             // Initialize quiz
-
-async function initQuiz() {
-    // Reset timer
-    stopTimer();
-    timerElement.textContent = '00:00';
-    timerElement.className = 'timer';
-    
-    // Hide timer
-    document.querySelector('.timer-container').style.display = 'none';
-    
-    // Show category selection screen
-    categoryContainer.style.display = 'flex';
-    questionContainer.classList.remove('active');
-    resultsContainer.classList.remove('show');
-    
-    // Load categories
-    await loadCategories();
-}
+            async function initQuiz() {
+                stopTimer();
+                timerElement.textContent = '00:00';
+                timerElement.className = 'timer';
+                timerContainer.style.display = 'none';
+                
+                categoryContainer.style.display = 'flex';
+                questionContainer.classList.remove('active');
+                resultsContainer.classList.remove('show');
+                
+                await loadCategories();
+            }
 
             // Load categories from API
             async function loadCategories() {
@@ -704,7 +691,6 @@ async function initQuiz() {
                     categoryElement.className = 'category-option';
                     categoryElement.dataset.categoryId = category.id;
                     
-                    // Get icon for category or use a default one
                     const icon = categoryIcons[category.name] || category.emoji;
                     
                     categoryElement.innerHTML = `
@@ -713,235 +699,212 @@ async function initQuiz() {
                         <h5 style='color: gray'>${category.time} min</h5>
                     `;
                     
-                    // Add click event
                     categoryElement.addEventListener('click', () => {
                         selectCategory(categoryElement, category.id);
                     });
                     
-                    // Add ripple effect
                     categoryElement.addEventListener('click', createRipple);
-                    
                     categoriesGrid.appendChild(categoryElement);
                 });
             }
 
             // Select a category
             function selectCategory(categoryElement, categoryId) {
-                // Deselect all categories
                 document.querySelectorAll('.category-option').forEach(el => {
                     el.classList.remove('selected');
                 });
 
-                // Select clicked category
                 categoryElement.classList.add('selected');
                 selectedCategoryId = categoryId;
                 startQuizButton.classList.add('enabled');
             }
 
             // Start the quiz with selected category
-async function startQuiz() {
-    if (!selectedCategoryId) return;
-    
-    let selectedCategoryName = null;
-    currentQuestionIndex = 0;
-    score = 0;
-    quizCompleted = false;
-    userAnswers = [];
-    
-    // Hide category screen and show loading state
-    categoryContainer.style.display = 'none';
-    questionContainer.classList.add('active');
-    questionTextElement.innerHTML = '<div class="loader"></div>';
-    answersContainer.innerHTML = '';
-    nextButton.classList.remove('enabled');
-    
-    // Show timer
-    document.querySelector('.timer-container').style.display = 'flex';
-    
-    try {
-        // Fetch questions and category info
-        const [questionsResponse, categoryResponse] = await Promise.all([
-            fetch(`${API_BASE_URL}/categories/${selectedCategoryId}/questions`),
-            fetch(`${API_BASE_URL}/categories/${selectedCategoryId}`)
-        ]);
-        
-        if (!questionsResponse.ok) throw new Error('Failed to fetch questions');
-        if (!categoryResponse.ok) throw new Error('Failed to fetch category');
-        
-        quizData = await questionsResponse.json();
-        totalQuestions = quizData.length;
-        const category = await categoryResponse.json();
-        selectedCategoryName = category.name;
+            async function startQuiz() {
+                if (!selectedCategoryId) return;
+                
+                currentQuestionIndex = 0;
+                score = 0;
+                quizCompleted = false;
+                userAnswers = [];
+                
+                categoryContainer.style.display = 'none';
+                questionContainer.classList.add('active');
+                questionTextElement.innerHTML = '<div class="loader"></div>';
+                answersContainer.innerHTML = '';
+                nextButton.classList.remove('enabled');
+                
+                timerContainer.style.display = 'flex';
+                
+                try {
+                    const [questionsResponse, categoryResponse] = await Promise.all([
+                        fetch(`${API_BASE_URL}/categories/${selectedCategoryId}/questions`),
+                        fetch(`${API_BASE_URL}/categories/${selectedCategoryId}`)
+                    ]);
+                    
+                    if (!questionsResponse.ok) throw new Error('Failed to fetch questions');
+                    if (!categoryResponse.ok) throw new Error('Failed to fetch category');
+                    
+                    quizData = await questionsResponse.json();
+                    totalQuestions = quizData.length;
+                    const category = await categoryResponse.json();
+                    selectedCategoryName = category.name;
 
-        if (totalQuestions === 0) {
-            throw new Error('No questions available for this category');
-        }
-        
-        // Start timer (convert minutes to seconds)
-        totalSeconds = category.time * 60;
-        remainingSeconds = totalSeconds;
-        startTime = new Date().getTime();
-        startTimer();
-        
-        loadQuestion(currentQuestionIndex);
-        updateProgressBar();
-        resultsContainer.classList.remove('show');
-    } catch (error) {
-        console.error('Error loading questions:', error);
-        questionTextElement.innerHTML = `<div class="error-message">${error.message}</div>`;
-        
-        // Hide timer on error
-        document.querySelector('.timer-container').style.display = 'none';
-        
-        // Show back button to return to categories
-        const backButton = document.createElement('button');
-        backButton.className = 'restart-button';
-        backButton.textContent = 'Back to Categories';
-        backButton.addEventListener('click', initQuiz);
-        answersContainer.appendChild(backButton);
-    }
-}
+                    if (totalQuestions === 0) {
+                        throw new Error('No questions available for this category');
+                    }
+                    
+                    totalSeconds = category.time * 60;
+                    remainingSeconds = totalSeconds;
+                    startTime = new Date().getTime();
+                    startTimer();
+                    
+                    loadQuestion(currentQuestionIndex);
+                    updateProgressBar();
+                    resultsContainer.classList.remove('show');
+                } catch (error) {
+                    console.error('Error loading questions:', error);
+                    questionTextElement.innerHTML = `<div class="error-message">${error.message}</div>`;
+                    timerContainer.style.display = 'none';
+                    
+                    const backButton = document.createElement('button');
+                    backButton.className = 'restart-button';
+                    backButton.textContent = 'Back to Categories';
+                    backButton.addEventListener('click', initQuiz);
+                    answersContainer.appendChild(backButton);
+                }
+            }
 
             // Load question
-function loadQuestion(index) {
-    // Reset state
-    isTransitioning = false;
-    selectedAnswer = null;
-    nextButton.classList.remove('enabled');
+            function loadQuestion(index) {
+                isTransitioning = false;
+                selectedAnswer = null;
+                nextButton.classList.remove('enabled');
 
-    // Update question number
-    questionNumberElement.textContent = `Savol ${index + 1} / ${quizData.length}`;
+                questionNumberElement.textContent = `Savol ${index + 1} / ${quizData.length}`;
+                const currentQuestion = quizData[index];
+                questionTextElement.textContent = currentQuestion.question;
+                answersContainer.innerHTML = '';
 
-    // Set question text
-    const currentQuestion = quizData[index];
-    questionTextElement.textContent = currentQuestion.question;
+                const answers = [
+                    currentQuestion.a_var,
+                    currentQuestion.b_var,
+                    currentQuestion.c_var,
+                    currentQuestion.d_var
+                ];
 
-    // Clear previous answers
-    answersContainer.innerHTML = '';
+                answers.forEach((answer, i) => {
+                    const answerElement = document.createElement('div');
+                    answerElement.className = 'answer-option';
+                    answerElement.dataset.answerId = i;
+                    answerElement.innerHTML = `
+                        <div class="answer-prefix">${String.fromCharCode(65 + i)}</div>
+                        <div class="answer-text">${answer}</div>
+                    `;
+                    
+                    answerElement.addEventListener('click', () => {
+                        if (!isTransitioning) selectAnswer(answerElement, i);
+                    });
+                    
+                    answerElement.addEventListener('click', createRipple);
+                    answersContainer.appendChild(answerElement);
+                });
 
-    // Add new answers
-    const answers = [
-        currentQuestion.a_var,
-        currentQuestion.b_var,
-        currentQuestion.c_var,
-        currentQuestion.d_var
-    ];
-
-    answers.forEach((answer, i) => {
-        const answerElement = document.createElement('div');
-        answerElement.className = 'answer-option';
-        answerElement.dataset.answerId = i;
-        answerElement.innerHTML = `
-            <div class="answer-prefix">${String.fromCharCode(65 + i)}</div>
-            <div class="answer-text">${answer}</div>
-        `;
-        
-        answerElement.addEventListener('click', () => {
-            if (!isTransitioning) selectAnswer(answerElement, i);
-        });
-        
-        answerElement.addEventListener('click', createRipple);
-        
-        answersContainer.appendChild(answerElement);
-    });
-
-    // Animate question entrance
-    questionContainer.style.opacity = 0;
-    questionContainer.style.transform = 'translateY(20px)';
-    setTimeout(() => {
-        questionContainer.style.opacity = 1;
-        questionContainer.style.transform = 'translateY(0)';
-    }, 50);
-}
+                questionContainer.style.opacity = 0;
+                questionContainer.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    questionContainer.style.opacity = 1;
+                    questionContainer.style.transform = 'translateY(0)';
+                }, 50);
+            }
 
             // Select answer
             function selectAnswer(answerElement, answerIndex) {
-                // Deselect all answers
                 document.querySelectorAll('.answer-option').forEach(el => {
                     el.classList.remove('selected');
                 });
 
-                // Select clicked answer
                 answerElement.classList.add('selected');
                 selectedAnswer = answerIndex;
                 nextButton.classList.add('enabled');
             }
 
             // Next question
-function nextQuestion() {
-    if (selectedAnswer === null || isTransitioning) return;
-    
-    isTransitioning = true;
-    
-    // Store user's answer
-    const currentQuestion = quizData[currentQuestionIndex];
-    const correctAnswerIndex = ['A', 'B', 'C', 'D'].indexOf(currentQuestion.answer);
-    const isCorrect = selectedAnswer === correctAnswerIndex;
-    
-    userAnswers.push({
-        questionIndex: currentQuestionIndex,
-        answerIndex: selectedAnswer,
-        isCorrect: isCorrect
-    });
+            function nextQuestion() {
+                if (selectedAnswer === null || isTransitioning) return;
+                
+                isTransitioning = true;
+                
+                const currentQuestion = quizData[currentQuestionIndex];
+                const correctAnswerIndex = ['A', 'B', 'C', 'D'].indexOf(currentQuestion.answer);
+                const isCorrect = selectedAnswer === correctAnswerIndex;
+                
+                userAnswers.push({
+                    questionIndex: currentQuestionIndex,
+                    answerIndex: selectedAnswer,
+                    isCorrect: isCorrect
+                });
 
-    // Update score if correct
-    if (isCorrect) {
-        score++;
-    }
+                if (isCorrect) {
+                    score++;
+                }
 
-    // Move to next question or end quiz
-    currentQuestionIndex++;
-    if (currentQuestionIndex >= quizData.length) {
-        endQuiz();
-    } else {
-        loadQuestion(currentQuestionIndex);
-    }
-    updateProgressBar();
-}
+                currentQuestionIndex++;
+                if (currentQuestionIndex >= quizData.length) {
+                    endQuiz();
+                } else {
+                    loadQuestion(currentQuestionIndex);
+                }
+                updateProgressBar();
+            }
 
             // End quiz
-function endQuiz() {
-    quizCompleted = true;
-    stopTimer();
-    
-    // Calculate percentage
-    const percentage = Math.round((score / quizData.length) * 100);
-    const payload = {
-    telegram_id: telegram_id,                  // может быть null, если не в TG
-    full_name: full_name,                      // строка "Имя Фамилия"
-    username: username,                        // без @
-    category: selectedCategoryName,            // имя категории
-    questions_count: quizData.length,
-    correct_answers_count: score,
-    correct_answers_percent: percentage
-};
+            function endQuiz() {
+                quizCompleted = true;
+                stopTimer();
+                
+                const percentage = Math.round((score / quizData.length) * 100);
+                const payload = {
+                    telegram_id: telegram_id,
+                    full_name: full_name,
+                    username: username,
+                    category: selectedCategoryName,
+                    questions_count: quizData.length,
+                    correct_answers_count: score,
+                    correct_answers_percent: percentage
+                };
 
-// Отправляем только если реально открыто в Telegram (есть tgUser)
-if (telegram_id) {
-    sendResultsToAdmin(payload);
-}
-    let performanceMessage;
-    
-    if (percentage >= 80) {
-        performanceMessage = "Ajoyib! Siz a'lo natija qayd etdingiz!";
-    } else if (percentage >= 60) {
-        performanceMessage = "Yaxshi! Lekin yanada yaxshiroq bo'lishi mumkin edi!";
-    } else if (percentage >= 40) {
-        performanceMessage = "Yomon emas! Lekin ko'proq o'qishingiz kerak!";
-    } else {
-        performanceMessage = "Mashq qilishda davom eting! Siz yaxshilanasiz!";
-    }
-    
-    const elapsedTime = getElapsedTime();
-    resultsScoreElement.textContent = `Sizning natijangiz: ${score} / ${quizData.length}`;
-    resultsDetailsElement.innerHTML = `
-        ${performanceMessage}<br>
-        Sarflangan vaqt: ${elapsedTime}
-    `;
-    
-    questionContainer.classList.remove('active');
-    resultsContainer.classList.add('show');
-}
+                if (telegram_id) {
+                    sendResultsToAdmin(payload);
+                }
+                
+                let performanceMessage;
+                if (percentage >= 80) {
+                    performanceMessage = "Ajoyib! Siz a'lo natija qayd etdingiz!";
+                } else if (percentage >= 60) {
+                    performanceMessage = "Yaxshi! Lekin yanada yaxshiroq bo'lishi mumkin edi!";
+                } else if (percentage >= 40) {
+                    performanceMessage = "Yomon emas! Lekin ko'proq o'qishingiz kerak!";
+                } else {
+                    performanceMessage = "Mashq qilishda davom eting! Siz yaxshilanasiz!";
+                }
+                
+                const elapsedTime = getElapsedTime();
+                resultsScoreElement.textContent = `Sizning natijangiz: ${score} / ${quizData.length}`;
+                resultsDetailsElement.innerHTML = `
+                    ${performanceMessage}<br>
+                    Sarflangan vaqt: ${elapsedTime}
+                `;
+                
+                questionContainer.classList.remove('active');
+                resultsContainer.classList.add('show');
+            }
+
+            // Update progress bar
+            function updateProgressBar() {
+                const progress = (currentQuestionIndex / quizData.length) * 100;
+                progressBar.style.width = `${progress}%`;
+            }
 
             // Create ripple effect
             function createRipple(e) {
@@ -949,7 +912,6 @@ if (telegram_id) {
                 const ripple = document.createElement('span');
                 ripple.className = 'ripple';
                 
-                // Position the ripple
                 const rect = button.getBoundingClientRect();
                 const size = Math.max(rect.width, rect.height);
                 const x = e.clientX - rect.left - size / 2;
@@ -961,10 +923,62 @@ if (telegram_id) {
                 
                 button.appendChild(ripple);
                 
-                // Remove ripple after animation
                 setTimeout(() => {
                     ripple.remove();
                 }, 600);
+            }
+
+            // Timer functions
+            function startTimer() {
+                updateTimerDisplay();
+                timerInterval = setInterval(() => {
+                    remainingSeconds--;
+                    updateTimerDisplay();
+                    
+                    if (remainingSeconds <= 30) {
+                        timerElement.classList.add('danger');
+                        timerElement.classList.remove('warning');
+                    } else if (remainingSeconds <= totalSeconds / 2) {
+                        timerElement.classList.add('warning');
+                        timerElement.classList.remove('danger');
+                    }
+                    
+                    if (remainingSeconds <= 0) {
+                        clearInterval(timerInterval);
+                        endQuiz();
+                    }
+                }, 1000);
+            }
+
+            function updateTimerDisplay() {
+                const minutes = Math.floor(remainingSeconds / 60);
+                const seconds = remainingSeconds % 60;
+                timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+
+            function stopTimer() {
+                clearInterval(timerInterval);
+            }
+
+            function getElapsedTime() {
+                const now = new Date().getTime();
+                const elapsedSeconds = Math.floor((now - startTime) / 1000);
+                const minutes = Math.floor(elapsedSeconds / 60);
+                const seconds = elapsedSeconds % 60;
+                return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+
+            // Send results to admin
+            async function sendResultsToAdmin(payload) {
+                try {
+                    await fetch(`${API_BASE_URL}/results`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload),
+                    });
+                } catch (e) {
+                    console.error('Failed to send results to admin:', e);
+                }
             }
 
             // Event listeners
@@ -975,54 +989,6 @@ if (telegram_id) {
             // Initialize the quiz
             initQuiz();
         });
-
-const timerElement = document.getElementById('timer');
-let timerInterval;
-let totalSeconds = 0;
-let remainingSeconds = 0;
-let startTime;
-
-function startTimer() {
-    updateTimerDisplay();
-    timerInterval = setInterval(() => {
-        remainingSeconds--;
-        updateTimerDisplay();
-        
-        // Change styles based on remaining time
-        if (remainingSeconds <= 30) {
-            timerElement.classList.add('danger');
-            timerElement.classList.remove('warning');
-        } else if (remainingSeconds <= totalSeconds / 2) {
-            timerElement.classList.add('warning');
-            timerElement.classList.remove('danger');
-        }
-        
-        // End quiz if time is up
-        if (remainingSeconds <= 0) {
-            clearInterval(timerInterval);
-            endQuiz();
-        }
-    }, 1000);
-}
-
-function updateTimerDisplay() {
-    const minutes = Math.floor(remainingSeconds / 60);
-    const seconds = remainingSeconds % 60;
-    timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-}
-
-function stopTimer() {
-    clearInterval(timerInterval);
-}
-
-function getElapsedTime() {
-    const now = new Date().getTime();
-    const elapsedSeconds = Math.floor((now - startTime) / 1000);
-    const minutes = Math.floor(elapsedSeconds / 60);
-    const seconds = elapsedSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-}
-
     </script>
 </body>
 </html>
