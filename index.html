@@ -892,7 +892,7 @@
                 performanceMessage = "Mashq qilishda davom eting! Siz yaxshilanasiz!";
             }
             
-            resultsScoreElement.textContent = `Sizning natijangiz: ${score} / ${quizData.length}`;
+            resultsScoreElement.textContent = `Sizning natijangiz: ${score} / ${quizData.length}` + ` (${percentage}%)`;
             resultsDetailsElement.innerHTML = `
                 ${performanceMessage}<br>
                 Sarflangan vaqt: ${elapsedTime}
