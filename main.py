@@ -355,19 +355,20 @@ async def get_leaderboard(
     category_condition = "TRUE" if category_id is None else f"category_id = {category_id}"
     
     leaderboard_query = f"""
-        SELECT 
-            full_name,
-            correct_answers_count as correct_answers,
-            questions_count as total_questions,
-            correct_answers_percent as percentage,
-            category,
-            spent_time,
-            TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI') as date
-        FROM results
-        WHERE {time_condition} AND {category_condition}
-        ORDER BY percentage DESC, correct_answers DESC
-        LIMIT 100
-    """
+    SELECT DISTINCT ON (full_name)
+        full_name,
+        correct_answers_count as correct_answers,
+        questions_count as total_questions,
+        correct_answers_percent as percentage,
+        category,
+        spent_time,
+        TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI') as date
+    FROM results
+    WHERE {time_condition} AND {category_condition}
+    ORDER BY full_name, percentage DESC, correct_answers DESC
+    LIMIT 10
+"""
+
     
     records = await db.fetch(leaderboard_query)
     leaderboard_data = [LeaderboardEntry(**dict(record)) for record in records]
