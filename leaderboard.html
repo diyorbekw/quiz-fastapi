@@ -417,15 +417,14 @@
         <div class="header">
             <div class="header-content">
                 <h1>Maktablar Reytingi</h1>
-                <p>Eng yaxshi natijalarga ega maktablar</p>
             </div>
         </div>
         
         <div class="filters">
             <div class="filter-group">
-                <label for="timeFilter"><i class="fas fa-clock"></i> Vaqt oralig'i</label>
+                <label for="timeFilter"><i class="fas fa-clock"></i> Vaqt</label>
                 <select id="timeFilter">
-                    <option value="all">-</option>
+                    <option value="all">Hammasi</option>
                     <option value="24h">So'nggi 24 soat</option>
                     <option value="week">So'nggi hafta</option>
                     <option value="month">So'nggi oy</option>
@@ -435,13 +434,14 @@
             <div class="filter-group">
                 <label for="regionFilter"><i class="fas fa-map-marker-alt"></i> Viloyat</label>
                 <select id="regionFilter">
-                    <option value=""></option>
+                    <option value="">Hammasi</option>
                 </select>
             </div>
             
             <div class="filter-group">
                 <label for="districtFilter"><i class="fas fa-building"></i> Tuman</label>
                 <select id="districtFilter">
+                    <option value="">Hammasi</option>
                 </select>
             </div>
         </div>
@@ -456,7 +456,7 @@
 
     <script>
         // API URL
-        const API_BASE_URL = 'http://localhost:1234';
+        const API_BASE_URL = 'http://exam.sifatdev.uz';
         
         // DOM elementlari
         const schoolsList = document.getElementById('schoolsList');
@@ -464,57 +464,42 @@
         const regionFilter = document.getElementById('regionFilter');
         const districtFilter = document.getElementById('districtFilter');
         
-        // Ma'lumotlarni yuklash
-        let schoolsData = [];
-        let regions = [];
-        let districts = [];
+        // Ma'lumotlarni saqlash
+        let allSchoolsData = [];
+        let filteredSchoolsData = [];
         
         // Sahifa yuklanganda ma'lumotlarni olish
         document.addEventListener('DOMContentLoaded', function() {
-            loadSchoolsData();
+            loadInitialData();
         });
         
-        // Filtrlarni o'zgartirganda ma'lumotlarni qayta yuklash
-        timeFilter.addEventListener('change', loadSchoolsData);
+        // Filtrlarni o'zgartirganda ma'lumotlarni filtrlash
+        timeFilter.addEventListener('change', filterSchools);
         regionFilter.addEventListener('change', function() {
             updateDistrictFilter();
-            loadSchoolsData();
+            filterSchools();
         });
-        districtFilter.addEventListener('change', loadSchoolsData);
+        districtFilter.addEventListener('change', filterSchools);
         
-        // Maktablar ma'lumotlarini yuklash
-        async function loadSchoolsData() {
+        // Dastlabki ma'lumotlarni yuklash
+        async function loadInitialData() {
             showLoading();
             
             try {
-                const timeFilterValue = timeFilter.value;
-                const regionFilterValue = regionFilter.value;
-                const districtFilterValue = districtFilter.value;
-                
                 // API so'rovini yuborish
-                let url = `${API_BASE_URL}/leaderboard/schools?time_filter=${timeFilterValue}`;
-                
-                if (regionFilterValue) {
-                    url += `&region=${encodeURIComponent(regionFilterValue)}`;
-                }
-                
-                if (districtFilterValue) {
-                    url += `&district=${encodeURIComponent(districtFilterValue)}`;
-                }
-                
-                const response = await fetch(url);
+                const response = await fetch(`${API_BASE_URL}/leaderboard/schools?time_filter=all`);
                 
                 if (!response.ok) {
                     throw new Error(`Server xatosi: ${response.status}`);
                 }
                 
-                schoolsData = await response.json();
+                allSchoolsData = await response.json();
                 
-                // Viloyatlar ro'yxatini yangilash
+                // Viloyatlar ro'yxatini to'ldirish
                 updateRegionFilter();
                 
-                // UI ni yangilash
-                renderSchoolsList();
+                // Ma'lumotlarni filtrlash va ko'rsatish
+                filterSchools();
                 
             } catch (error) {
                 console.error('Ma\'lumotlarni yuklashda xatolik:', error);
@@ -522,17 +507,51 @@
             }
         }
         
+        // Maktablarni filtrlash
+        function filterSchools() {
+            const timeFilterValue = timeFilter.value;
+            const regionFilterValue = regionFilter.value;
+            const districtFilterValue = districtFilter.value;
+            
+            // Filtrlash logikasi
+            filteredSchoolsData = allSchoolsData.filter(school => {
+                // Vaqt filtri (bu yerda API dan kelgan ma'lumotlarni filtrlash)
+                // Agar API vaqt filtri bilan qaytarsa, bu qism o'zgartirilishi kerak
+                
+                // Viloyat filtri
+                if (regionFilterValue && school.region !== regionFilterValue) {
+                    return false;
+                }
+                
+                // Tuman filtri
+                if (districtFilterValue && school.district !== districtFilterValue) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            // UI ni yangilash
+            renderSchoolsList();
+        }
+        
         // Viloyatlar filtrini yangilash
         function updateRegionFilter() {
             // Mavjud viloyatlarni olish
-            const uniqueRegions = [...new Set(schoolsData.map(school => school.region))].filter(region => region);
+            const uniqueRegions = [...new Set(allSchoolsData.map(school => school.region))].filter(region => region);
+            
+            // Joriy tanlangan qiymatni saqlash
+            const currentValue = regionFilter.value;
             
             // Viloyatlar ro'yxatini yangilash
-            regionFilter.innerHTML = '<option value="">-</option>';
+            regionFilter.innerHTML = '<option value="">Hammasi</option>';
             uniqueRegions.forEach(region => {
                 const option = document.createElement('option');
                 option.value = region;
                 option.textContent = region;
+                if (region === currentValue) {
+                    option.selected = true;
+                }
                 regionFilter.appendChild(option);
             });
             
@@ -545,35 +564,48 @@
             const selectedRegion = regionFilter.value;
             
             // Tanlangan viloyatga tegishli tumanlarni olish
-            const regionDistricts = schoolsData
-                .filter(school => !selectedRegion || school.region === selectedRegion)
-                .map(school => school.district)
-                .filter(district => district);
+            let regionDistricts;
+            if (selectedRegion) {
+                regionDistricts = allSchoolsData
+                    .filter(school => school.region === selectedRegion)
+                    .map(school => school.district)
+                    .filter(district => district);
+            } else {
+                regionDistricts = allSchoolsData
+                    .map(school => school.district)
+                    .filter(district => district);
+            }
             
             const uniqueDistricts = [...new Set(regionDistricts)];
             
+            // Joriy tanlangan qiymatni saqlash
+            const currentValue = districtFilter.value;
+            
             // Tumanlar ro'yxatini yangilash
-            districtFilter.innerHTML = '<option value="">-</option>';
+            districtFilter.innerHTML = '<option value="">Hammasi</option>';
             uniqueDistricts.forEach(district => {
                 const option = document.createElement('option');
                 option.value = district;
                 option.textContent = district;
+                if (district === currentValue) {
+                    option.selected = true;
+                }
                 districtFilter.appendChild(option);
             });
         }
         
         // Maktablar ro'yxatini chiqarish
         function renderSchoolsList() {
-            if (schoolsData.length === 0) {
+            if (filteredSchoolsData.length === 0) {
                 showEmptyState();
                 return;
             }
             
             let html = '';
             
-            schoolsData.forEach((school, index) => {
+            filteredSchoolsData.forEach((school, index) => {
                 const rank = index + 1;
-                const percentage = school.average_percentage;
+                const percentage = school.average_percentage || 0;
                 
                 // Foizga qarab rang belgilash
                 let percentageClass = 'percentage-medium';
@@ -592,7 +624,7 @@
                 html += `
                 <div class="school-card">
                     <div class="school-header">
-                        <div class="school-name">${escapeHtml(school.school)}</div>
+                        <div class="school-name">${escapeHtml(school.school || 'Noma\'lum maktab')}</div>
                         <div class="rank ${rankClass}">${rank}</div>
                     </div>
                     
@@ -603,12 +635,12 @@
                     
                     <div class="stats">
                         <div class="stat">
-                            <div class="stat-value">${school.total_correct_answers}</div>
+                            <div class="stat-value">${school.total_correct_answers || 0}</div>
                             <div class="stat-label">Ball</div>
                         </div>
                         
                         <div class="stat">
-                            <div class="stat-value">${school.total_participants}</div>
+                            <div class="stat-value">${school.total_participants || 0}</div>
                             <div class="stat-label">Ishtirokchilar</div>
                         </div>
                         
@@ -640,7 +672,7 @@
                 <div class="error-state">
                     <i class="fas fa-exclamation-triangle"></i>
                     <p>${message}</p>
-                    <button class="retry-btn" onclick="loadSchoolsData()">Qayta urinish</button>
+                    <button class="retry-btn" onclick="loadInitialData()">Qayta urinish</button>
                 </div>
             `;
         }
@@ -651,12 +683,22 @@
                 <div class="empty-state">
                     <i class="fas fa-school"></i>
                     <p>Tanlangan filtrlarda maktablar topilmadi</p>
+                    <button class="retry-btn" onclick="resetFilters()">Filtrlarni tozalash</button>
                 </div>
             `;
         }
         
+        // Filtrlarni tozalash
+        function resetFilters() {
+            timeFilter.value = 'all';
+            regionFilter.value = '';
+            districtFilter.value = '';
+            filterSchools();
+        }
+        
         // HTML xavfsizligi uchun matnni tozalash
         function escapeHtml(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
