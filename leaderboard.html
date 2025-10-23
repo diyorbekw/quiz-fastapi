@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maktablar Reytingi</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #2d3748;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        #leaderboard-container {
+            width: 380px;
+            height: 740px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.1),
+                0 0 0 1px rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 25px 25px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            animation: float 20s linear infinite;
+        }
+        
+        @keyframes float {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(-20px, -20px) rotate(360deg); }
+        }
+        
+        .header-content {
+            position: relative;
+            z-index: 2;
+        }
+        
+        .header h1 {
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+        
+        /* Filters */
+        .filters {
+            background: rgba(248, 250, 252, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+            display: flex;
+            gap: 12px;
+            align-items: end;
+        }
+        
+        .filter-group {
+            flex: 1;
+        }
+        
+        .filter-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1.5px solid #e2e8f0;
+            background: white;
+            font-size: 13px;
+            color: #334155;
+            outline: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+        }
+        
+        select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        /* Content */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+        }
+        
+        /* School Cards */
+        .school-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 
+                0 4px 12px rgba(0, 0, 0, 0.05),
+                0 1px 2px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .school-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .school-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 
+                0 12px 24px rgba(0, 0, 0, 0.1),
+                0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .school-card:hover::before {
+            opacity: 1;
+        }
+        
+        .school-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        
+        .school-name {
+            font-weight: 700;
+            font-size: 16px;
+            color: #1e293b;
+            line-height: 1.4;
+            flex: 1;
+            padding-right: 10px;
+        }
+        
+        .rank {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 800;
+            flex-shrink: 0;
+            color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            transition: transform 0.3s ease;
+        }
+        
+        .school-card:hover .rank {
+            transform: scale(1.1);
+        }
+        
+        .rank-1 {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            box-shadow: 0 4px 12px rgba(255, 165, 0, 0.3);
+        }
+        
+        .rank-2 {
+            background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
+            box-shadow: 0 4px 12px rgba(160, 160, 160, 0.3);
+        }
+        
+        .rank-3 {
+            background: linear-gradient(135deg, #CD7F32, #A0522D);
+            box-shadow: 0 4px 12px rgba(205, 127, 50, 0.3);
+        }
+        
+        .rank-4plus {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .location {
+            display: flex;
+            align-items: center;
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 16px;
+            gap: 8px;
+        }
+        
+        .location i {
+            width: 16px;
+            text-align: center;
+            color: #667eea;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid rgba(226, 232, 240, 0.8);
+            padding-top: 16px;
+            gap: 8px;
+        }
+        
+        .stat {
+            text-align: center;
+            flex: 1;
+            padding: 8px 4px;
+            border-radius: 8px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .stat:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        .stat-value {
+            font-weight: 800;
+            font-size: 18px;
+            color: #1e293b;
+            margin-bottom: 2px;
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .percentage-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .percentage-high {
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+        
+        .percentage-medium {
+            background: linear-gradient(135deg, #F59E0B, #D97706);
+            color: white;
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+        }
+        
+        .percentage-low {
+            background: linear-gradient(135deg, #EF4444, #DC2626);
+            color: white;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+        }
+        
+        /* Loading States */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+        
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(102, 126, 234, 0.2);
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #64748b;
+        }
+        
+        .empty-state i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+            color: #667eea;
+        }
+        
+        .error-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #dc2626;
+        }
+        
+        .error-state i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+        
+        .retry-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            margin-top: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .retry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* Scrollbar */
+        .content::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .content::-webkit-scrollbar-track {
+            background: rgba(241, 245, 249, 0.5);
+            border-radius: 3px;
+        }
+        
+        .content::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 3px;
+        }
+        
+        .content::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5a6fd8, #6a4190);
+        }
+        
+        /* Responsive */
+        @media (max-width: 400px) {
+            #leaderboard-container {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+            }
+            
+            .filters {
+                flex-direction: column;
+                gap: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="leaderboard-container">
+        <div class="header">
+            <div class="header-content">
+                <h1>Maktablar Reytingi</h1>
+                <p>Eng yaxshi natijalarga ega maktablar</p>
+            </div>
+        </div>
+        
+        <div class="filters">
+            <div class="filter-group">
+                <label for="timeFilter"><i class="fas fa-clock"></i> Vaqt oralig'i</label>
+                <select id="timeFilter">
+                    <option value="all">-</option>
+                    <option value="24h">So'nggi 24 soat</option>
+                    <option value="week">So'nggi hafta</option>
+                    <option value="month">So'nggi oy</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="regionFilter"><i class="fas fa-map-marker-alt"></i> Viloyat</label>
+                <select id="regionFilter">
+                    <option value=""></option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="districtFilter"><i class="fas fa-building"></i> Tuman</label>
+                <select id="districtFilter">
+                </select>
+            </div>
+        </div>
+        
+        <div class="content" id="schoolsList">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <p>Ma'lumotlar yuklanmoqda...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API URL
+        const API_BASE_URL = 'http://localhost:1234';
+        
+        // DOM elementlari
+        const schoolsList = document.getElementById('schoolsList');
+        const timeFilter = document.getElementById('timeFilter');
+        const regionFilter = document.getElementById('regionFilter');
+        const districtFilter = document.getElementById('districtFilter');
+        
+        // Ma'lumotlarni yuklash
+        let schoolsData = [];
+        let regions = [];
+        let districts = [];
+        
+        // Sahifa yuklanganda ma'lumotlarni olish
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSchoolsData();
+        });
+        
+        // Filtrlarni o'zgartirganda ma'lumotlarni qayta yuklash
+        timeFilter.addEventListener('change', loadSchoolsData);
+        regionFilter.addEventListener('change', function() {
+            updateDistrictFilter();
+            loadSchoolsData();
+        });
+        districtFilter.addEventListener('change', loadSchoolsData);
+        
+        // Maktablar ma'lumotlarini yuklash
+        async function loadSchoolsData() {
+            showLoading();
+            
+            try {
+                const timeFilterValue = timeFilter.value;
+                const regionFilterValue = regionFilter.value;
+                const districtFilterValue = districtFilter.value;
+                
+                // API so'rovini yuborish
+                let url = `${API_BASE_URL}/leaderboard/schools?time_filter=${timeFilterValue}`;
+                
+                if (regionFilterValue) {
+                    url += `&region=${encodeURIComponent(regionFilterValue)}`;
+                }
+                
+                if (districtFilterValue) {
+                    url += `&district=${encodeURIComponent(districtFilterValue)}`;
+                }
+                
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`Server xatosi: ${response.status}`);
+                }
+                
+                schoolsData = await response.json();
+                
+                // Viloyatlar ro'yxatini yangilash
+                updateRegionFilter();
+                
+                // UI ni yangilash
+                renderSchoolsList();
+                
+            } catch (error) {
+                console.error('Ma\'lumotlarni yuklashda xatolik:', error);
+                showError('Ma\'lumotlarni yuklashda xatolik yuz berdi. Iltimos, keyinroq urinib ko\'ring.');
+            }
+        }
+        
+        // Viloyatlar filtrini yangilash
+        function updateRegionFilter() {
+            // Mavjud viloyatlarni olish
+            const uniqueRegions = [...new Set(schoolsData.map(school => school.region))].filter(region => region);
+            
+            // Viloyatlar ro'yxatini yangilash
+            regionFilter.innerHTML = '<option value="">-</option>';
+            uniqueRegions.forEach(region => {
+                const option = document.createElement('option');
+                option.value = region;
+                option.textContent = region;
+                regionFilter.appendChild(option);
+            });
+            
+            // Tumanlar filtrini yangilash
+            updateDistrictFilter();
+        }
+        
+        // Tumanlar filtrini yangilash
+        function updateDistrictFilter() {
+            const selectedRegion = regionFilter.value;
+            
+            // Tanlangan viloyatga tegishli tumanlarni olish
+            const regionDistricts = schoolsData
+                .filter(school => !selectedRegion || school.region === selectedRegion)
+                .map(school => school.district)
+                .filter(district => district);
+            
+            const uniqueDistricts = [...new Set(regionDistricts)];
+            
+            // Tumanlar ro'yxatini yangilash
+            districtFilter.innerHTML = '<option value="">-</option>';
+            uniqueDistricts.forEach(district => {
+                const option = document.createElement('option');
+                option.value = district;
+                option.textContent = district;
+                districtFilter.appendChild(option);
+            });
+        }
+        
+        // Maktablar ro'yxatini chiqarish
+        function renderSchoolsList() {
+            if (schoolsData.length === 0) {
+                showEmptyState();
+                return;
+            }
+            
+            let html = '';
+            
+            schoolsData.forEach((school, index) => {
+                const rank = index + 1;
+                const percentage = school.average_percentage;
+                
+                // Foizga qarab rang belgilash
+                let percentageClass = 'percentage-medium';
+                if (percentage >= 80) {
+                    percentageClass = 'percentage-high';
+                } else if (percentage < 60) {
+                    percentageClass = 'percentage-low';
+                }
+                
+                // Reyting darajasi
+                let rankClass = 'rank-4plus';
+                if (rank === 1) rankClass = 'rank-1';
+                else if (rank === 2) rankClass = 'rank-2';
+                else if (rank === 3) rankClass = 'rank-3';
+                
+                html += `
+                <div class="school-card">
+                    <div class="school-header">
+                        <div class="school-name">${escapeHtml(school.school)}</div>
+                        <div class="rank ${rankClass}">${rank}</div>
+                    </div>
+                    
+                    <div class="location">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>${escapeHtml(school.region || 'Noma\'lum')} - ${escapeHtml(school.district || 'Noma\'lum')}</span>
+                    </div>
+                    
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-value">${school.total_correct_answers}</div>
+                            <div class="stat-label">Ball</div>
+                        </div>
+                        
+                        <div class="stat">
+                            <div class="stat-value">${school.total_participants}</div>
+                            <div class="stat-label">Ishtirokchilar</div>
+                        </div>
+                        
+                        <div class="stat">
+                            <div class="stat-value">${percentage.toFixed(1)}%</div>
+                            <div class="stat-label">O'rtacha</div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            });
+            
+            schoolsList.innerHTML = html;
+        }
+        
+        // Yuklanish holatini ko'rsatish
+        function showLoading() {
+            schoolsList.innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Ma'lumotlar yuklanmoqda...</p>
+                </div>
+            `;
+        }
+        
+        // Xatolik holatini ko'rsatish
+        function showError(message) {
+            schoolsList.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>${message}</p>
+                    <button class="retry-btn" onclick="loadSchoolsData()">Qayta urinish</button>
+                </div>
+            `;
+        }
+        
+        // Bo'sh holatni ko'rsatish
+        function showEmptyState() {
+            schoolsList.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-school"></i>
+                    <p>Tanlangan filtrlarda maktablar topilmadi</p>
+                </div>
+            `;
+        }
+        
+        // HTML xavfsizligi uchun matnni tozalash
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
