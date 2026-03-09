@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Bot token - replace with your actual token
-BOT_TOKEN = "8064936197:AAF3Qx-G8p5ubPWbh-MQbZMW-WB7c54voN4"
+BOT_TOKEN = "BOT_TOKEN_HERE"
 
 # Initialize bot and dispatcher
 bot = Bot(token=BOT_TOKEN)
